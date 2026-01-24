@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- Restore sidebar console logs with toast summary output
+- Disable verbose debug capture for auto-update runs
+- Add release and publish workflows with trusted publishing
+
 ## 0.1.1
 
 - Changed from custom `--log-update` flag to standard `--log-level DEBUG` for compatibility
