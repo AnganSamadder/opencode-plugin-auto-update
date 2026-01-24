@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Bun
+bun.lockb
+
+# Environment
+.env
+.env.local
+
+# AI/Agent development
+.sisyphus/
+.opencode/
+ai-todo.md
+.cursor/
+.continue/
+
+# Test artifacts
+coverage/
+.nyc_output/
+
+# Lock files (optional - keep bun.lock for reproducibility)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml

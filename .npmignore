@@ -1,0 +1,36 @@
+# Source files
+src/
+tsconfig.json
+tsup.config.ts
+
+# Development
+*.log
+.vscode/
+.idea/
+
+# Tests
+test/
+tests/
+__tests__/
+*.test.ts
+*.spec.ts
+
+# Bun
+bun.lockb
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+
+# Documentation (keep README)
+docs/
+*.md
+!README.md
+
+# Environment
+.env
+.env.local
