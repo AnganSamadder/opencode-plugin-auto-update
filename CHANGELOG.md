@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/AnganSamadder/opencode-plugin-auto-update/compare/v0.1.3...v0.2.0) (2026-01-24)
+
+
+### Features
+
+* initial commit - auto-update plugin v0.1.1 ([dc8662c](https://github.com/AnganSamadder/opencode-plugin-auto-update/commit/dc8662c45381ae6ae796f2839849af0147e0c13f))
+* streamline update logging and add release workflows ([1be210a](https://github.com/AnganSamadder/opencode-plugin-auto-update/commit/1be210ac50a2daf1468e48bda8956806330b4ddc))
+
 ## 0.1.1
 
 - Changed from custom `--log-update` flag to standard `--log-level DEBUG` for compatibility
