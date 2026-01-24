@@ -3,10 +3,6 @@ name: Publish
 on:
   release:
     types: [published]
-  push:
-    tags:
-      - "v*"
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,15 +12,30 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     environment: release
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v1
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
-          registry-url: https://registry.npmjs.org
-      - run: bun install --frozen-lockfile
-      - run: bun run build
-      - run: npm publish --access public --provenance
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+      - name: Clear npm token env (force OIDC)
+        run: |
+          echo "NODE_AUTH_TOKEN=" >> "$GITHUB_ENV"
+          echo "NPM_TOKEN=" >> "$GITHUB_ENV"
+      - name: Install dependencies
+        run: bun install
+      - name: Build
+        run: bun run build
+      - name: Publish to NPM
+        run: npm publish --access public --provenance
+        env:
+          NPM_CONFIG_PROVENANCE: true
+          NODE_AUTH_TOKEN: ""
