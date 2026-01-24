@@ -1,6 +1,6 @@
 {
   "name": "opencode-plugin-auto-update",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "description": "OpenCode plugin that auto-updates plugins in the background",
   "type": "module",
   "main": "dist/index.js",

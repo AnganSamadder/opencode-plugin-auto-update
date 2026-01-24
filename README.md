@@ -16,7 +16,7 @@ Automatically updates OpenCode plugins in the background on startup. No prompts,
 
 - Zero startup delay (async, detached update)
 - Bun-first installs with npm fallback
-- Silent by default; debug logging via env
+- Logs update output to the console sidebar with a toast summary
 - Skips local/path/git plugins
 
 ## 📦 Installation
@@ -94,29 +94,34 @@ Configure via environment variables:
 |----------|---------|-------------|
 | `OPENCODE_AUTO_UPDATE_DISABLED` | `false` | Disable all updates when `true` |
 | `OPENCODE_AUTO_UPDATE_INTERVAL_HOURS` | `24` | Throttle interval in hours |
-| `OPENCODE_AUTO_UPDATE_DEBUG` | `false` | Enable debug logs |
 | `OPENCODE_AUTO_UPDATE_PINNED` | `false` | Preserve pinned versions |
 | `OPENCODE_AUTO_UPDATE_BYPASS_THROTTLE` | `false` | Ignore throttle (useful for testing) |
 
-### CLI Flags
+### Local Config File
 
-- `opencode --log-level DEBUG`: enable debug mode for OpenCode and trigger verbose update logs with throttle bypass.
+You can bypass throttling without relying on CLI flags by creating:
+
+`~/.config/opencode/opencode-plugin-auto-update.json`
+
+```json
+{
+  "ignoreThrottle": true
+}
+```
 
 ## ❓ Troubleshooting
 
 1. **Updates not running**: ensure `OPENCODE_AUTO_UPDATE_DISABLED` is not set to `true`.
-2. **No logs**: run `opencode --log-level DEBUG` or set `OPENCODE_AUTO_UPDATE_DEBUG=true` for verbose output.
+2. **No logs**: confirm the plugin is enabled and watch for the "Auto-update logs" output after startup.
 3. **Plugin not loading**: check the `plugin` array in `~/.config/opencode/opencode.json`.
-4. **Testing updates**: run `opencode --log-level DEBUG` to bypass the 24h throttle and see detailed update logs.
+4. **Testing updates**: set `OPENCODE_AUTO_UPDATE_BYPASS_THROTTLE=true` or the local config `ignoreThrottle=true`.
 
 ## 🚀 Release Process
 
-1. Update version in `package.json`
-2. Update `CHANGELOG.md`
-3. `bun run build`
-4. `npm publish`
-5. `git tag vX.Y.Z && git push --tags`
-6. `gh release create vX.Y.Z --notes "..."`
+1. Land changes on `main` using conventional commits.
+2. The Release workflow opens a Release Please PR with version + changelog updates.
+3. Merge the Release Please PR to create the tag + GitHub release.
+4. The Publish workflow (environment: `release`) builds and publishes to npm via OIDC.
 
 ## 📄 License
 

@@ -1,0 +1,11 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "node"
+    }
+  },
+  "include-v-in-tag": true,
+  "include-component-in-tag": false,
+  "bump-minor-pre-major": true,
+  "versioning": "prerelease"
+}

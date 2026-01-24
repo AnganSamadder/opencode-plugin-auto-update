@@ -25,6 +25,8 @@ export interface AutoUpdateOptions {
   debug?: boolean;
   preservePinned?: boolean;
   ignoreThrottle?: boolean;
+  onLog?: (message: string) => void;
+  onError?: (message: string) => void;
 }
 
 interface CommandResult {
@@ -52,15 +54,19 @@ export async function runAutoUpdate(options: AutoUpdateOptions = {}): Promise<vo
   const configPath = join(configDir, 'opencode.json');
 
   const log = (...args: unknown[]) => {
+    const message = formatLogMessage(args);
     if (debug) {
-      console.log(...args);
+      console.log(message);
     }
+    options.onLog?.(message);
   };
 
   const error = (...args: unknown[]) => {
+    const message = formatLogMessage(args);
     if (debug) {
-      console.error(...args);
+      console.error(message);
     }
+    options.onError?.(message);
   };
 
   const lockAcquired = await acquireLock({ debug, configDir });
@@ -353,4 +359,28 @@ function envNumber(name: string, fallback: number): number {
   }
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function formatLogMessage(args: unknown[]): string {
+  return args
+    .map((arg) => {
+      if (typeof arg === 'string') {
+        return arg;
+      }
+      if (arg instanceof Error) {
+        return arg.message || arg.name;
+      }
+      if (arg && typeof arg === 'object' && 'message' in arg) {
+        const message = (arg as { message?: unknown }).message;
+        if (typeof message === 'string' && message.trim().length > 0) {
+          return message;
+        }
+      }
+      try {
+        return JSON.stringify(arg);
+      } catch {
+        return String(arg);
+      }
+    })
+    .join(' ');
 }
