@@ -24,6 +24,7 @@ interface PluginOutput {
 
 interface PluginConfig {
   ignoreThrottle?: boolean;
+  debug?: boolean;
 }
 
 export default async function (ctx: PluginInput): Promise<PluginOutput> {
@@ -37,6 +38,7 @@ export default async function (ctx: PluginInput): Promise<PluginOutput> {
 
   const localConfig = await readLocalConfig();
   configIgnoreThrottle = localConfig.ignoreThrottle ?? false;
+  const configDebug = localConfig.debug ?? false;
 
   const shouldIgnoreThrottle = (): boolean => envBypassThrottle || configIgnoreThrottle;
 
@@ -58,9 +60,6 @@ export default async function (ctx: PluginInput): Promise<PluginOutput> {
       });
       await writeDebug('toast shown');
     }
-
-    console.log(message);
-    await writeDebug('console fallback used');
   };
 
   const startUpdate = (): void => {
@@ -74,7 +73,7 @@ export default async function (ctx: PluginInput): Promise<PluginOutput> {
     const errorEntries: string[] = [];
 
     runAutoUpdate({
-      debug: false,
+      debug: configDebug,
       ignoreThrottle: shouldIgnoreThrottle(),
       onLog: (message) => logEntries.push(message),
       onError: (message) => errorEntries.push(message),
@@ -84,12 +83,10 @@ export default async function (ctx: PluginInput): Promise<PluginOutput> {
         void writeDebug(`update finished (logs=${logEntries.length}, errors=${errorEntries.length})`);
         notifyUser(updateMessage).catch((error) => {
           void writeDebug(`notifyUser error: ${String(error)}`);
-          console.error('[opencode-plugin-auto-update] Failed to notify user:', error);
         });
       })
       .catch((error) => {
         void writeDebug(`runAutoUpdate error: ${String(error)}`);
-        console.error('[opencode-plugin-auto-update] Update check failed:', error);
       });
   };
 

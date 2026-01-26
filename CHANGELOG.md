@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+
+- Support for auto-updating `ocx` extensions if `ocx` is installed
+- Improved update output handling
+
+## 0.2.1
+
+- Remove console log output for update summaries
+- Limit output to toast notifications in normal runs
+
 ## 0.2.0
 
 - Restore sidebar console logs with toast summary output

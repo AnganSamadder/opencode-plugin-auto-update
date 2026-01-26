@@ -16,7 +16,7 @@ Automatically updates OpenCode plugins in the background on startup. No prompts,
 
 - Zero startup delay (async, detached update)
 - Bun-first installs with npm fallback
-- Logs update output to the console sidebar with a toast summary
+- Shows a brief toast summary after updates
 - Skips local/path/git plugins
 
 ## 📦 Installation

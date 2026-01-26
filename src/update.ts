@@ -115,6 +115,22 @@ export async function runAutoUpdate(options: AutoUpdateOptions = {}): Promise<vo
       await writeConfig(configPath, updatedConfig);
     }
 
+    const hasOcx = await commandExists('ocx');
+    if (hasOcx) {
+      log('[auto-update] Found ocx, checking for extension updates...');
+      const ocxResult = await runCommand('ocx', ['update']);
+      if (ocxResult.code === 0) {
+        const output = ocxResult.stdout.trim();
+        if (output) {
+          log('[auto-update] ocx update result:', output);
+        } else {
+          log('[auto-update] ocx update complete (no output).');
+        }
+      } else {
+        error('[auto-update] ocx update failed:', ocxResult.stderr || ocxResult.stdout);
+      }
+    }
+
     await writeThrottleState(
       { ...state, lastRun: now, lastSuccess: Date.now() },
       { debug, configDir }
