@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1
+
+- Ensure update check runs every time OpenCode is opened (removed 1-hour minimum throttle)
+- Default update interval changed from 24h to 0 (always check)
+
 ## 0.3.0
 
 - Support for auto-updating `ocx` extensions if `ocx` is installed
