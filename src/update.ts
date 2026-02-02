@@ -18,6 +18,30 @@ interface OpenCodeConfig {
   [key: string]: unknown;
 }
 
+function normalizePluginConfig(config: OpenCodeConfig): {
+  config: OpenCodeConfig;
+  changed: boolean;
+} {
+  const existingPlugin = Array.isArray(config.plugin) ? [...config.plugin] : [];
+  const existingPlugins = Array.isArray(config.plugins) ? [...config.plugins] : [];
+
+  if (existingPlugins.length === 0) {
+    return { config, changed: false };
+  }
+
+  const merged: string[] = [];
+  for (const entry of [...existingPlugin, ...existingPlugins]) {
+    if (!merged.includes(entry)) {
+      merged.push(entry);
+    }
+  }
+
+  config.plugin = merged;
+  delete config.plugins;
+
+  return { config, changed: true };
+}
+
 export interface AutoUpdateOptions {
   configDir?: string;
   intervalHours?: number;
@@ -48,7 +72,7 @@ export async function runAutoUpdate(options: AutoUpdateOptions = {}): Promise<vo
 
   const debug = options.debug ?? envFlag('OPENCODE_AUTO_UPDATE_DEBUG');
   const ignoreThrottle = options.ignoreThrottle ?? envFlag('OPENCODE_AUTO_UPDATE_BYPASS_THROTTLE');
-  const intervalHours = options.intervalHours ?? envNumber('OPENCODE_AUTO_UPDATE_INTERVAL_HOURS', 24);
+  const intervalHours = options.intervalHours ?? envNumber('OPENCODE_AUTO_UPDATE_INTERVAL_HOURS', 0);
   const preservePinned = options.preservePinned ?? envFlag('OPENCODE_AUTO_UPDATE_PINNED');
   const configDir = options.configDir ?? DEFAULT_CONFIG_DIR;
   const configPath = join(configDir, 'opencode.json');
@@ -78,7 +102,7 @@ export async function runAutoUpdate(options: AutoUpdateOptions = {}): Promise<vo
   try {
     const state = await readThrottleState({ configDir });
     const now = Date.now();
-    const intervalMs = Math.max(intervalHours, 1) * 60 * 60 * 1000;
+    const intervalMs = intervalHours * 60 * 60 * 1000;
 
     if (!ignoreThrottle && state.lastRun && now - state.lastRun < intervalMs) {
       log('[auto-update] Throttled, skipping update.');
@@ -87,9 +111,20 @@ export async function runAutoUpdate(options: AutoUpdateOptions = {}): Promise<vo
 
     await writeThrottleState({ ...state, lastRun: now }, { debug, configDir });
 
-    const config = await readConfig(configPath);
-    const { plugins, key } = getPluginList(config);
-    if (!plugins || plugins.length === 0 || !key) {
+    const rawConfig = await readConfig(configPath);
+    if (!rawConfig) {
+      log('[auto-update] No config found, skipping.');
+      return;
+    }
+
+    const normalized = normalizePluginConfig(rawConfig);
+    if (normalized.changed) {
+      await writeConfig(configPath, normalized.config);
+      log('[auto-update] Migrated config.plugins -> config.plugin');
+    }
+
+    const { plugins } = getPluginList(normalized.config);
+    if (!plugins || plugins.length === 0) {
       log('[auto-update] No plugins found to update.');
       return;
     }
@@ -111,7 +146,11 @@ export async function runAutoUpdate(options: AutoUpdateOptions = {}): Promise<vo
     });
 
     if (updateResult.changed) {
-      const updatedConfig: OpenCodeConfig = { ...config, [key]: updateResult.plugins };
+      const updatedConfig: OpenCodeConfig = {
+        ...normalized.config,
+        plugin: updateResult.plugins,
+      };
+      delete updatedConfig.plugins;
       await writeConfig(configPath, updatedConfig);
     }
 
@@ -158,23 +197,14 @@ async function writeConfig(configPath: string, config: OpenCodeConfig): Promise<
   await writeFile(configPath, `${contents}\n`, 'utf-8');
 }
 
-function getPluginList(config: OpenCodeConfig | null): {
+function getPluginList(config: OpenCodeConfig): {
   plugins: string[] | null;
-  key: 'plugin' | 'plugins' | null;
 } {
-  if (!config) {
-    return { plugins: null, key: null };
-  }
-
   if (Array.isArray(config.plugin)) {
-    return { plugins: config.plugin, key: 'plugin' };
+    return { plugins: config.plugin };
   }
 
-  if (Array.isArray(config.plugins)) {
-    return { plugins: config.plugins, key: 'plugins' }; 
-  }
-
-  return { plugins: null, key: null };
+  return { plugins: null };
 }
 
 async function updatePlugins(options: {

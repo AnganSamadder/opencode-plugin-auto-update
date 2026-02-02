@@ -3,8 +3,23 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 
 import { runAutoUpdate } from './update.js';
+import {
+  appendCircularLog,
+  formatLogEntry,
+} from './utils/circular-log.js';
 
 const CONFIG_PATH = join(homedir(), '.config', 'opencode', 'opencode-plugin-auto-update.json');
+
+function extractUpdatedPlugins(logEntries: string[]): string[] {
+  const plugins: string[] = [];
+  for (const entry of logEntries) {
+    const match = entry.match(/Updated\s+(.+?)\s+from\s+v[\d.]+\s+to\s+v[\d.]+/i);
+    if (match && match[1]) {
+      plugins.push(match[1]);
+    }
+  }
+  return plugins;
+}
 const DEBUG_FILE = '/tmp/opencode-auto-update-debug.log';
 const DEBUG_ENABLED = false;
 
@@ -62,6 +77,8 @@ export default async function (ctx: PluginInput): Promise<PluginOutput> {
     }
   };
 
+    const CIRCULAR_LOG_PATH = join(ctx.directory, '..', '.auto-update-history.json');
+
   const startUpdate = (): void => {
     if (updateStarted) {
       return;
@@ -71,6 +88,7 @@ export default async function (ctx: PluginInput): Promise<PluginOutput> {
 
     const logEntries: string[] = [];
     const errorEntries: string[] = [];
+    const startTime = Date.now();
 
     runAutoUpdate({
       debug: configDebug,
@@ -79,6 +97,15 @@ export default async function (ctx: PluginInput): Promise<PluginOutput> {
       onError: (message) => errorEntries.push(message),
     })
       .then(() => {
+        const duration = Date.now() - startTime;
+        const success = errorEntries.length === 0;
+        const pluginsUpdated = extractUpdatedPlugins(logEntries);
+        
+        void appendCircularLog(
+          CIRCULAR_LOG_PATH,
+          formatLogEntry(pluginsUpdated, errorEntries, duration, success)
+        );
+        
         updateMessage = formatUpdateMessage(logEntries, errorEntries);
         void writeDebug(`update finished (logs=${logEntries.length}, errors=${errorEntries.length})`);
         notifyUser(updateMessage).catch((error) => {
@@ -86,6 +113,11 @@ export default async function (ctx: PluginInput): Promise<PluginOutput> {
         });
       })
       .catch((error) => {
+        const duration = Date.now() - startTime;
+        void appendCircularLog(
+          CIRCULAR_LOG_PATH,
+          formatLogEntry([], [String(error)], duration, false)
+        );
         void writeDebug(`runAutoUpdate error: ${String(error)}`);
       });
   };
