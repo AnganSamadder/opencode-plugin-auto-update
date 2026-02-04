@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.3
+
+- Documentation improvements (README polish)
+
+## 0.3.2
+
+- Documentation improvements (README polish)
+
 ## 0.3.1
 
 - Ensure update check runs every time OpenCode is opened (removed 1-hour minimum throttle)
