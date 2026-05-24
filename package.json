@@ -12,6 +12,7 @@
     ".": "./dist/index.js"
   },
   "scripts": {
+    "test": "bun test",
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",

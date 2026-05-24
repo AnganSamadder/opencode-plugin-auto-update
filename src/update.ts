@@ -93,7 +93,7 @@ export async function runAutoUpdate(options: AutoUpdateOptions = {}): Promise<vo
     options.onError?.(message);
   };
 
-  const lockAcquired = await acquireLock({ debug, configDir });
+  const lockAcquired = await acquireLock({ debug, configDir, force: true });
   if (!lockAcquired) {
     log('[auto-update] Lock already held, skipping.');
     return;
@@ -430,3 +430,4 @@ function formatLogMessage(args: unknown[]): string {
     })
     .join(' ');
 }
+
