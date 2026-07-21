@@ -1,7 +1,14 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { access, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { spawn } from 'node:child_process';
+import {
+  applyEdits,
+  modify,
+  parse as parseJsonc,
+  type ParseError as JsoncParseError,
+  printParseErrorCode,
+} from 'jsonc-parser';
 
 import {
   acquireLock,
@@ -12,10 +19,20 @@ import {
 
 const DEFAULT_CONFIG_DIR = join(homedir(), '.config', 'opencode');
 
+/** Prefer OpenCode's JSONC config, then fall back to plain JSON. */
+const CONFIG_FILENAMES = ['opencode.jsonc', 'opencode.json'] as const;
+
 interface OpenCodeConfig {
   plugin?: string[];
   plugins?: string[];
   [key: string]: unknown;
+}
+
+interface LoadedConfig {
+  path: string;
+  /** Raw file text — preserved so JSONC comments/formatting can be edited in place. */
+  text: string;
+  config: OpenCodeConfig;
 }
 
 function normalizePluginConfig(config: OpenCodeConfig): {
@@ -75,7 +92,6 @@ export async function runAutoUpdate(options: AutoUpdateOptions = {}): Promise<vo
   const intervalHours = options.intervalHours ?? envNumber('OPENCODE_AUTO_UPDATE_INTERVAL_HOURS', 0);
   const preservePinned = options.preservePinned ?? envFlag('OPENCODE_AUTO_UPDATE_PINNED');
   const configDir = options.configDir ?? DEFAULT_CONFIG_DIR;
-  const configPath = join(configDir, 'opencode.json');
 
   const log = (...args: unknown[]) => {
     const message = formatLogMessage(args);
@@ -111,15 +127,25 @@ export async function runAutoUpdate(options: AutoUpdateOptions = {}): Promise<vo
 
     await writeThrottleState({ ...state, lastRun: now }, { debug, configDir });
 
-    const rawConfig = await readConfig(configPath);
-    if (!rawConfig) {
-      log('[auto-update] No config found, skipping.');
+    const loaded = await loadConfig(configDir);
+    if (!loaded) {
+      log(
+        '[auto-update] No config found, skipping. Looked for:',
+        CONFIG_FILENAMES.map((name) => join(configDir, name)).join(', ')
+      );
       return;
     }
 
-    const normalized = normalizePluginConfig(rawConfig);
+    log('[auto-update] Using config:', loaded.path);
+
+    const normalized = normalizePluginConfig(loaded.config);
+    let configText = loaded.text;
     if (normalized.changed) {
-      await writeConfig(configPath, normalized.config);
+      // Migrate plugins -> plugin while preserving JSONC comments via jsonc-parser edits.
+      configText = setPluginListInText(configText, normalized.config.plugin ?? []);
+      // Drop legacy key if present (undefined removes the property).
+      configText = applyConfigEdit(configText, ['plugins'], undefined);
+      await writeFile(loaded.path, ensureTrailingNewline(configText), 'utf-8');
       log('[auto-update] Migrated config.plugins -> config.plugin');
     }
 
@@ -146,12 +172,10 @@ export async function runAutoUpdate(options: AutoUpdateOptions = {}): Promise<vo
     });
 
     if (updateResult.changed) {
-      const updatedConfig: OpenCodeConfig = {
-        ...normalized.config,
-        plugin: updateResult.plugins,
-      };
-      delete updatedConfig.plugins;
-      await writeConfig(configPath, updatedConfig);
+      // Surgical edit of the plugin array — keeps // comments and trailing commas intact.
+      const nextText = setPluginListInText(configText, updateResult.plugins);
+      await writeFile(loaded.path, ensureTrailingNewline(nextText), 'utf-8');
+      log('[auto-update] Wrote updated plugin list to', loaded.path);
     }
 
     const hasOcx = await commandExists('ocx');
@@ -182,19 +206,74 @@ export async function runAutoUpdate(options: AutoUpdateOptions = {}): Promise<vo
   }
 }
 
-async function readConfig(configPath: string): Promise<OpenCodeConfig | null> {
+/**
+ * Resolve which OpenCode config file to use.
+ * Prefer `opencode.jsonc` (OpenCode's default for commented configs), then `opencode.json`.
+ */
+export async function resolveConfigPath(configDir: string): Promise<string | null> {
+  for (const name of CONFIG_FILENAMES) {
+    const candidate = join(configDir, name);
+    try {
+      await access(candidate);
+      return candidate;
+    } catch {
+      // try next
+    }
+  }
+  return null;
+}
+
+async function loadConfig(configDir: string): Promise<LoadedConfig | null> {
+  const configPath = await resolveConfigPath(configDir);
+  if (!configPath) {
+    return null;
+  }
+
   try {
-    const contents = await readFile(configPath, 'utf-8');
-    return JSON.parse(contents) as OpenCodeConfig;
+    const text = await readFile(configPath, 'utf-8');
+    const errors: JsoncParseError[] = [];
+    const config = parseJsonc(text, errors, {
+      allowTrailingComma: true,
+      disallowComments: false,
+    }) as OpenCodeConfig | undefined;
+
+    if (errors.length > 0) {
+      const first = errors[0];
+      const where = first
+        ? `${printParseErrorCode(first.error)} at offset ${first.offset}`
+        : 'unknown parse error';
+      // Treat parse failure like a missing config so the run is a clean skip, not a crash.
+      throw new Error(`Invalid JSON/JSONC in ${configPath}: ${where}`);
+    }
+
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      throw new Error(`Config root must be an object: ${configPath}`);
+    }
+
+    return { path: configPath, text, config };
   } catch {
     return null;
   }
 }
 
-async function writeConfig(configPath: string, config: OpenCodeConfig): Promise<void> {
-  await mkdir(dirname(configPath), { recursive: true });
-  const contents = JSON.stringify(config, null, 2);
-  await writeFile(configPath, `${contents}\n`, 'utf-8');
+/** Apply a single jsonc-parser edit and return the new text. */
+function applyConfigEdit(text: string, path: Array<string | number>, value: unknown): string {
+  const edits = modify(text, path, value, {
+    formattingOptions: {
+      tabSize: 2,
+      insertSpaces: true,
+    },
+  });
+  return applyEdits(text, edits);
+}
+
+/** Replace the entire `plugin` array while preserving surrounding comments/layout. */
+function setPluginListInText(text: string, plugins: string[]): string {
+  return applyConfigEdit(text, ['plugin'], plugins);
+}
+
+function ensureTrailingNewline(text: string): string {
+  return text.endsWith('\n') ? text : `${text}\n`;
 }
 
 function getPluginList(config: OpenCodeConfig): {
@@ -328,10 +407,12 @@ function isNonRegistryPlugin(spec: string): boolean {
     return true;
   }
 
-  return trimmed.startsWith('./') ||
+  return (
+    trimmed.startsWith('./') ||
     trimmed.startsWith('../') ||
     trimmed.startsWith('/') ||
-    trimmed.startsWith('~');
+    trimmed.startsWith('~')
+  );
 }
 
 function parsePackageSpec(spec: string): { name: string; version?: string } {

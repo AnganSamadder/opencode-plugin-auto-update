@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.4
+
+- Support `opencode.jsonc` (preferred) in addition to `opencode.json`
+- Parse configs with `jsonc-parser` (comments + trailing commas)
+- Preserve comments when rewriting the `plugin` list (no more full JSON.stringify wipe)
+
 ## 0.3.3
 
 - Documentation improvements (README polish)

@@ -38,5 +38,8 @@
     "@types/node": "^25.0.10",
     "tsup": "^8.3.6",
     "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "jsonc-parser": "^3.3.1"
   }
 }

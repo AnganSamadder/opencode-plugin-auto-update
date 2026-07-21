@@ -124,17 +124,16 @@ For persistent overrides without environment variables, create:
 
 ## 🛠️ How It Works
 
-1. **Trigger**: On OpenCode startup, the plugin schedules a background task.
-2. **Lock & Throttle**: It checks if an update is already running or if the 24h
-   interval has passed.
-3. **Fetch**: It identifies registry-based plugins and fetches their latest
-   versions.
-4. **Install**: Updates are installed into `~/.config/opencode/node_modules`.
-5. **Sync**: Updates `opencode.json` with the new versions (unless pinning is
-   enabled).
+1. On startup, schedules a background update task.
+2. Applies a throttle (default: every open) and a lock to avoid concurrent runs.
+3. Loads config from `~/.config/opencode/opencode.jsonc` **or** `opencode.json` (JSONC preferred; comments + trailing commas allowed).
+4. Installs latest versions into `~/.config/opencode/node_modules`.
+5. Updates the `plugin` list in-place with `jsonc-parser` so comments are preserved (unless pinning is enabled).
+
 
 ## ❓ Troubleshooting
 
+- **Using `opencode.jsonc`?** Supported since 0.3.4 — the plugin prefers `.jsonc` over `.json` and preserves comments when rewriting the `plugin` list.
 - **Updates not running?** Check if `OPENCODE_AUTO_UPDATE_DISABLED` is set.
 - **No logs?** The plugin is designed to be quiet. Check the "Auto-update logs"
   output in your agent's console for details.
