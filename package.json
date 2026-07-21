@@ -15,7 +15,8 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "bun run build"
+    "prepublishOnly": "bun run build",
+    "prepare": "bun run build || npm run build"
   },
   "keywords": [
     "opencode",
