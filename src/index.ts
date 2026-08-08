@@ -77,7 +77,7 @@ export default async function (ctx: PluginInput): Promise<PluginOutput> {
     }
   };
 
-    const CIRCULAR_LOG_PATH = join(ctx.directory, '..', '.auto-update-history.json');
+  const CIRCULAR_LOG_PATH = join(homedir(), '.auto-update-history.json');
 
   const startUpdate = (): void => {
     if (updateStarted) {
